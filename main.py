@@ -86,7 +86,7 @@ def save_acc_loss(train_loss_list, test_loss_list, train_acc_list, test_acc_list
 def log(epoch, train_acc, test_acc):
     with open(log_path, 'a+') as logfile:
         print("Epoch {:3d}, Train Acc {:.2%}, Test Acc {:.2%}".
-         format(epoch, train_acc, test_acc))
+         format(epoch, train_acc, test_acc), file = logfile)
 
 def train(model, train_loader, criterion, optimizer, epoch):
     model.train()
@@ -105,7 +105,7 @@ def train(model, train_loader, criterion, optimizer, epoch):
         optimizer.step() 
 
     train_loss = total_train_loss / len(train_loader.dataset)
-    acc = 100. * correct / len(train_loader.dataset)
+    acc = correct / len(train_loader.dataset)
     print('Training: Epoch:{:>3}, Total loss: {:.4f}, Accuracy: {}/{} ({:.1f}%)'.format(epoch,
     total_train_loss, correct, len(train_loader.dataset), acc))
     return acc, total_train_loss
@@ -123,7 +123,7 @@ def test(model, test_loader, criterion, epoch, best = False):
             pred = output.argmax(dim = 1, keepdim = True)
             correct += pred.eq(target.view_as(pred)).sum().item()
 
-    test_acc = 100. * correct / len(test_loader.dataset)
+    test_acc = correct / len(test_loader.dataset)
     if not best:   
         print('Testing : Epoch:{:>3}, Total loss: {:.4f}, Accuracy: {}/{} ({:.1f}%)'.format(epoch,
         test_loss, correct, len(test_loader.dataset),
@@ -203,7 +203,7 @@ if __name__ == '__main__':
     log_path = os.path.join(args.checkpoint_folder, log_name)
     with open(log_path, "w+") as f:
         pass # clear log
-        
+
     # set seed
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
