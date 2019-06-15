@@ -23,7 +23,8 @@ class Feeder(torch.utils.data.Dataset):
                  label_path,
                  num_frame_path,
                  normalization=True,
-                 ftrans=True
+                 ftrans=True,
+                 label_minus_one=True
                  ):
         self.data_path = data_path
         self.label_path = label_path
@@ -32,6 +33,8 @@ class Feeder(torch.utils.data.Dataset):
         self.ftrans = ftrans
         self.init_joint_map()
         self.load_data()
+        if label_minus_one:
+            self.label_minus_one()
         self.normalize()
 
     def init_joint_map(self):
@@ -48,7 +51,6 @@ class Feeder(torch.utils.data.Dataset):
         # (batch, max_frame, feature)
         # (?, 201, 60)
         # load label
-        print("loading data")
         with open(self.label_path, 'rb') as f:
             self.sample_name, self.label = pickle.load(f)
         
@@ -69,7 +71,6 @@ class Feeder(torch.utils.data.Dataset):
             norm = np.linalg.norm(data_numpy, ord = 'fro', axis = (2,3), keepdims= True)
             data_numpy = data_numpy / (norm + eps)
             # new axis
-            print("rotating axis")
             size = data_numpy.shape[0]
             max_frame = data_numpy.shape[1]
             for i in tqdm(range(size)):
@@ -87,6 +88,9 @@ class Feeder(torch.utils.data.Dataset):
             else:
                 pass
             self.data = np.reshape(data_numpy, (self.size, self.max_frame, self.feature_dim))
+
+    def label_minus_one(self):
+        self.label = [x - 1 for x in self.label]
 
     def __len__(self):
         return len(self.label)
@@ -122,7 +126,7 @@ def test(data_path, label_path, valid_frame_path, vid=None):
         index = sample_id.index(vid)
         data, label, frame_num = loader.dataset[index]
         data = np.transpose(np.reshape(data[0,:], (20,3)),(1,0)) 
-        from visualize import visualize
+        from visualizer import visualize
         visualize(data, False, '/home2/wuxiao/pose_encoding/figures/test_dataloader.png')
 
 
@@ -133,6 +137,8 @@ if __name__ == '__main__':
     data_path = "/home2/wuxiao/pose_encoding/dataset/test_data.npy"
     label_path = "/home2/wuxiao/pose_encoding/dataset/test_label.pkl"
     valid_frame_path = "/home2/wuxiao/pose_encoding/dataset/test_num_frame.npy"
-    # dataset = Feeder(data_path, label_path, valid_frame_path)
-    # print(np.bincount(dataset.label))
+    dataset = Feeder(data_path, label_path, valid_frame_path)
+    print(np.bincount(dataset.label))
+    print("min(label): %s" %str(np.min(dataset.label)))
+    print("max(label): %s" %str(np.max(dataset.label)))
     test(data_path, label_path, valid_frame_path, vid='a09_s06_e02_v3_skeleton')
