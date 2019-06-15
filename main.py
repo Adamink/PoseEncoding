@@ -83,6 +83,11 @@ def save_acc_loss(train_loss_list, test_loss_list, train_acc_list, test_acc_list
     np.save(acc_file_path + '_train.npy', np.asarray(train_acc_list))
     np.save(acc_file_path + '_test.npy', np.asarray(test_acc_list))
 
+def log(epoch, train_acc, test_acc):
+    with open(log_path, 'a+') as logfile:
+        print("Epoch {:3d}, Train Acc {:.2%}, Test Acc {:.2%}".
+         format(epoch, train_acc, test_acc))
+
 def train(model, train_loader, criterion, optimizer, epoch):
     model.train()
     total_train_loss = 0.
@@ -123,18 +128,10 @@ def test(model, test_loader, criterion, epoch, best = False):
         print('Testing : Epoch:{:>3}, Total loss: {:.4f}, Accuracy: {}/{} ({:.1f}%)'.format(epoch,
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
-        with open(log_path, 'a+') as logfile:
-            print('Epoch:{:>3}, Total loss: {:.4f}, Accuracy: {}/{} ({:.1f}%)'.format(epoch,
-            test_loss, correct, len(test_loader.dataset),
-            100. * correct / len(test_loader.dataset)), file = logfile)
     else:
         print("BestPerformance:\nEpoch:{:>3}, Total loss: {:.4f}, Accuracy: {}/{} ({:.1f}%)".format(
             epoch, test_loss, correct, len(test_loader.dataset),
             100. * correct / len(test_loader.dataset)))
-        with open(log_path, 'a+') as logfile:
-            print("BestPerformance:\nEpoch:{:>3}, Total loss: {:.4f}, Accuracy: {}/{} ({:.1f}%)".format(
-            epoch, test_loss, correct, len(test_loader.dataset),
-            100. * correct / len(test_loader.dataset)), file = logfile)
     return test_acc, test_loss
 
 
@@ -165,6 +162,8 @@ def train_and_evaluate(model, train_loader, test_loader, optimizer, criterion, s
             train_loss_list.append(train_loss)
             test_acc_list.append(test_acc)
             test_loss_list.append(test_loss)
+
+            log(epoch, train_acc, test_acc)
 
             if test_acc > best_acc:
                 best_epoch = epoch
@@ -200,9 +199,11 @@ if __name__ == '__main__':
     global model_path, log_path
     model_name =  'model_' + args.version + '.pt'
     model_path = os.path.join(args.checkpoint_folder, model_name)
-    log_name = 'log_' + args.version + '.pt'
+    log_name = 'log_' + args.version + '.txt'
     log_path = os.path.join(args.checkpoint_folder, log_name)
-
+    with open(log_path, "w+") as f:
+        pass # clear log
+        
     # set seed
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)

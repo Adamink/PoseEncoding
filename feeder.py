@@ -29,13 +29,13 @@ class Feeder(torch.utils.data.Dataset):
         self.data_path = data_path
         self.label_path = label_path
         self.num_frame_path = num_frame_path
-        self.normalization = normalization
         self.ftrans = ftrans
         self.init_joint_map()
         self.load_data()
         if label_minus_one:
             self.label_minus_one()
-        self.normalize()
+        if normalization:
+            self.normalize()
 
     def init_joint_map(self):
         self.joint_map = {'torso':1, 'left_hip': 13, 'right_hip': 17}
