@@ -83,10 +83,21 @@ def save_acc_loss(train_loss_list, test_loss_list, train_acc_list, test_acc_list
     np.save(acc_file_path + '_train.npy', np.asarray(train_acc_list))
     np.save(acc_file_path + '_test.npy', np.asarray(test_acc_list))
 
-def log(epoch, train_acc, test_acc):
+def draw_acc_fig():
+    import matplotlib.pyplot as plt
+    plt.switch_backend('agg')
+    acc_file_name = 'acc_' + args.version 
+    acc_file_path = os.path.join(args.checkpoint_folder, acc_file_name)
+    train_acc = np.load(acc_file_path + '_train.npy')
+    test_acc = np.load(acc_file_path + '_test.npy')
+    fig_name = 'acc_' + args.version + '.png'
+    fig_path = os.path.join(args.figure_folder, fig_name)
+    from visualizer import draw_acc
+    draw_acc(train_acc, test_acc, fig_path)
+    
+def log(message):
     with open(log_path, 'a+') as logfile:
-        print("Epoch {:3d}, Train Acc {:.2%}, Test Acc {:.2%}".
-         format(epoch, train_acc, test_acc), file = logfile)
+        print(message, file = logfile)
 
 def train(model, train_loader, criterion, optimizer, epoch):
     model.train()
@@ -107,7 +118,7 @@ def train(model, train_loader, criterion, optimizer, epoch):
     train_loss = total_train_loss / len(train_loader.dataset)
     acc = correct / len(train_loader.dataset)
     print('Training: Epoch:{:>3}, Total loss: {:.4f}, Accuracy: {}/{} ({:.1f}%)'.format(epoch,
-    total_train_loss, correct, len(train_loader.dataset), acc))
+    total_train_loss, correct, len(train_loader.dataset), 100 * acc))
     return acc, total_train_loss
     
 def test(model, test_loader, criterion, epoch, best = False):
@@ -163,7 +174,7 @@ def train_and_evaluate(model, train_loader, test_loader, optimizer, criterion, s
             test_acc_list.append(test_acc)
             test_loss_list.append(test_loss)
 
-            log(epoch, train_acc, test_acc)
+            log("Epoch {:3d}, Train Acc {:.2%}, Test Acc {:.2%}".format(epoch, train_acc, test_acc))
 
             if test_acc > best_acc:
                 best_epoch = epoch
@@ -182,13 +193,17 @@ def train_and_evaluate(model, train_loader, test_loader, optimizer, criterion, s
             
             epoch += 1
     finally:
-        # save acc and loss curve
+        # save and draw acc and loss curve
         save_acc_loss(train_loss_list, test_loss_list, train_acc_list, test_acc_list)
+        draw_acc_fig()
         # best mode output
         print("==> testing model")
         model_info = torch.load(model_path)
         model.load_state_dict(model_info['state_dict'])
         test_acc, test_loss = test(model, test_loader, criterion, best_epoch, True)
+        log("Best Epoch {:3d}, Test Acc {:.2%}".format(best_epoch, test_acc))
+        
+        
 
 if __name__ == '__main__':
     # parse args

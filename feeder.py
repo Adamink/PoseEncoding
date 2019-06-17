@@ -22,25 +22,31 @@ class Feeder(torch.utils.data.Dataset):
                  data_path,
                  label_path,
                  num_frame_path,
-                 normalization=True,
+                 normalization='default',
                  ftrans=True,
-                 label_minus_one=True
+                 label_minus_one=True,
                  ):
         self.data_path = data_path
         self.label_path = label_path
         self.num_frame_path = num_frame_path
         self.ftrans = ftrans
+        self.eps = 1e-10
         self.init_joint_map()
         self.load_data()
         if label_minus_one:
             self.label_minus_one()
-        if normalization:
+        if normalization!='none':
+            self.origin_transfer()
             self.normalize()
-
+            if normalization=='my':
+                self.my_rotate()
+            else:
+                self.default_rotate()
+        
     def init_joint_map(self):
-        self.joint_map = {'torso':1, 'left_hip': 13, 'right_hip': 17}
+        self.joint_map = {'torso':1, 'left_hip': 13, 'right_hip': 17, 
+         'shoulder_center':3, 'spine':2, 'left_shoulder':5, 'right_shoulder':9}
         self.origins = [1, 13, 17]
-
         # all minus one
         for joint in self.joint_map:
             self.joint_map[joint] = self.joint_map[joint] - 1
@@ -59,36 +65,89 @@ class Feeder(torch.utils.data.Dataset):
         self.size, self.max_frame, self.feature_dim = self.data.shape
         # load num of valid frame length
         self.valid_frame_num = np.load(self.num_frame_path)
+    
+    def origin_transfer(self):
+        data_numpy = np.reshape(self.data, (self.size, self.max_frame, -1, 3))
+        origin = np.mean(data_numpy[:, :, self.origins,:], axis = 2, keepdims= True)
+        data_numpy = data_numpy - origin
+        self.data = np.reshape(data_numpy, (self.size, self.max_frame, self.feature_dim))
 
     def normalize(self):
         data_numpy = np.reshape(self.data, (self.size, self.max_frame, -1, 3))
-        if self.ftrans:
-            # new origin
-            origin = np.mean(data_numpy[:, :, self.origins,:], axis = 2, keepdims= True)
-            data_numpy = data_numpy - origin
-            # normalize
-            eps = 1e-8
-            norm = np.linalg.norm(data_numpy, ord = 'fro', axis = (2,3), keepdims= True)
-            data_numpy = data_numpy / (norm + eps)
-            # new axis
-            size = data_numpy.shape[0]
-            max_frame = data_numpy.shape[1]
-            for i in tqdm(range(size)):
-                for j in range(max_frame):
-                    x_axis = data_numpy[i,j, self.joint_map['left_hip'],:]
-                    x_axis = x_axis / (np.linalg.norm(x_axis) + eps)
-                    y_axis = data_numpy[i,j, self.joint_map['torso'],:]
-                    y_axis = y_axis - x_axis * np.inner(y_axis,x_axis)
-                    y_axis = y_axis / (np.linalg.norm(y_axis) + eps)
-                    z_axis = np.cross(x_axis, y_axis)
-                    z_axis = z_axis / (np.linalg.norm(z_axis) + eps)
-                    data_numpy[i,j,:,0] = np.inner(data_numpy[i,j,:,:], x_axis)
-                    data_numpy[i,j,:,1] = np.inner(data_numpy[i,j,:,:], y_axis)
-                    data_numpy[i,j,:,2] = np.inner(data_numpy[i,j,:,:], z_axis)
-            else:
-                pass
-            self.data = np.reshape(data_numpy, (self.size, self.max_frame, self.feature_dim))
+        norm = np.linalg.norm(data_numpy, ord = 'fro', axis = (2,3), keepdims= True)
+        data_numpy = data_numpy / (norm + self.eps)
+        self.data = np.reshape(data_numpy, (self.size, self.max_frame, self.feature_dim))
 
+    def my_rotate(self):
+        data_numpy = np.reshape(self.data, (self.size, self.max_frame, -1, 3))
+        dst = np.zeros_like(data_numpy)
+        for i in tqdm(range(self.size)):
+            for j in range(self.max_frame):
+                shoulder_center = data_numpy[i,j,self.joint_map['shoulder_center'],:]
+                spine = data_numpy[i,j,self.joint_map['spine'], :]
+                right_shoulder = data_numpy[i,j, self.joint_map['right_shoulder'],:]
+                left_shoulder = data_numpy[i,j, self.joint_map['left_shoulder'],:]
+
+                new_z = shoulder_center - spine
+                unit_z = new_z / np.linalg.norm(new_z + self.eps)
+                new_x = right_shoulder - left_shoulder
+                new_x = new_x - unit_z * np.inner(new_x, unit_z) 
+                unit_x = new_x / np.linalg.norm(new_x + self.eps)
+                unit_y = - np.cross(unit_x, unit_z)
+                unit_y = unit_y / np.linalg.norm(unit_y + self.eps)
+                x_axis = unit_x
+                y_axis = unit_y
+                z_axis = unit_z
+                dst[i,j,:,0] = np.inner(data_numpy[i,j,:,:], x_axis)
+                dst[i,j,:,1] = np.inner(data_numpy[i,j,:,:], y_axis)
+                dst[i,j,:,2] = np.inner(data_numpy[i,j,:,:], z_axis)
+        self.data = np.reshape(dst, (self.size, self.max_frame, self.feature_dim))
+    def default_rotate(self):
+        data_numpy = np.reshape(self.data, (self.size, self.max_frame, -1, 3))
+        dst = np.zeros_like(data_numpy)
+        for i in tqdm(range(self.size)):
+            for j in range(self.max_frame):
+                x_axis = data_numpy[i,j, self.joint_map['left_hip'],:]
+                x_axis = x_axis / (np.linalg.norm(x_axis) + self.eps)
+                y_axis = data_numpy[i,j, self.joint_map['torso'],:]
+                y_axis = y_axis - x_axis * np.inner(y_axis,x_axis)
+                y_axis = y_axis / (np.linalg.norm(y_axis) + self.eps)
+                z_axis = np.cross(x_axis, y_axis)
+                z_axis = z_axis / (np.linalg.norm(z_axis) + self.eps)
+                dst[i,j,:,0] = np.inner(data_numpy[i,j,:,:], x_axis)
+                dst[i,j,:,1] = np.inner(data_numpy[i,j,:,:], y_axis)
+                dst[i,j,:,2] = np.inner(data_numpy[i,j,:,:], z_axis)
+                    
+        self.data = np.reshape(dst, (self.size, self.max_frame, self.feature_dim))
+
+    # to implement
+    def quick_rotate(self):
+        data_numpy = np.reshape(self.data, (self.size, self.max_frame, -1, 3))
+        x_axis = data_numpy[:,:,self.joint_map['left_hip'],:]
+        x_axis = x_axis / (np.linalg.norm(x_axis, axis = 2) + self.eps)
+        y_axis = data_numpy[:,:,self.joint_map['torso'],:]
+        y_axis = y_axis - np.einsum('ijk,ij->ijk',x_axis, np.einsum('ijk,ijk->ij', y_axis, x_axis))
+        z_axis = np.cross(x_axis, y_axis)
+        z_axis = z_axis / (np.linalg.norm(z_axis, axis = 2) + self.eps)  
+        M = np.stack([x_axis,y_axis,z_axis], axis = 2) # (size, max_frame, 3(stack), 3)
+        #(size, max_frame, joint, 3)
+        #(size,max_frame, joint, 3)
+        data_numpy = np.einsum('ijkt,ijlk->ijlk', M, data_numpy)
+        for i in tqdm(range(self.size)):
+            for j in range(self.max_frame):
+                x_axis = data_numpy[i,j, self.joint_map['left_hip'],:]
+                x_axis = x_axis / (np.linalg.norm(x_axis) + self.eps)
+                y_axis = data_numpy[i,j, self.joint_map['torso'],:]
+                y_axis = y_axis - x_axis * np.inner(y_axis,x_axis)
+                y_axis = y_axis / (np.linalg.norm(y_axis) + self.eps)
+                z_axis = np.cross(x_axis, y_axis)
+                z_axis = z_axis / (np.linalg.norm(z_axis) + self.eps)
+                dst[i,j,:,0] = np.inner(data_numpy[i,j,:,:], x_axis)
+                dst[i,j,:,1] = np.inner(data_numpy[i,j,:,:], y_axis)
+                dst[i,j,:,2] = np.inner(data_numpy[i,j,:,:], z_axis)
+                    
+        self.data = np.reshape(data_numpy, (self.size, self.max_frame, self.feature_dim))
+    
     def label_minus_one(self):
         self.label = [x - 1 for x in self.label]
 
@@ -111,10 +170,10 @@ class Feeder(torch.utils.data.Dataset):
         return sum(hit_top_k) * 1.0 / len(hit_top_k)
 
 
-def test(data_path, label_path, valid_frame_path, vid=None):
+def test(data_path, label_path, valid_frame_path, vid=None, local=True):
     import matplotlib.pyplot as plt
     loader = torch.utils.data.DataLoader(
-        dataset=Feeder(data_path, label_path, valid_frame_path),
+        dataset=Feeder(data_path, label_path, valid_frame_path, normalization = True),
         batch_size=64,
         shuffle=False,
         num_workers=2,
@@ -125,20 +184,21 @@ def test(data_path, label_path, valid_frame_path, vid=None):
         sample_id = [name.split('.')[0] for name in sample_name]
         index = sample_id.index(vid)
         data, label, frame_num = loader.dataset[index]
-        data = np.transpose(np.reshape(data[0,:], (20,3)),(1,0)) 
+        data = np.transpose(np.reshape(data[0,:], (20,3)),(1,0)) # (3, 20)
+        print("norm: " + str(np.linalg.norm(data)))
         from visualizer import visualize
-        visualize(data, False, '/home2/wuxiao/pose_encoding/figures/test_dataloader.png')
+        if not local:
+            import matplotlib.pyplot as plt
+            plt.switch_backend('agg')
+            visualize(data, False, './figures/test_dataloader.png')
+        else:
+            visualize(data, True)
 
 
 if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    import numpy as np
-    plt.switch_backend('agg')
-    data_path = "/home2/wuxiao/pose_encoding/dataset/test_data.npy"
-    label_path = "/home2/wuxiao/pose_encoding/dataset/test_label.pkl"
-    valid_frame_path = "/home2/wuxiao/pose_encoding/dataset/test_num_frame.npy"
-    dataset = Feeder(data_path, label_path, valid_frame_path)
-    print(np.bincount(dataset.label))
-    print("min(label): %s" %str(np.min(dataset.label)))
-    print("max(label): %s" %str(np.max(dataset.label)))
-    test(data_path, label_path, valid_frame_path, vid='a09_s06_e02_v3_skeleton')
+    data_path = "./dataset/train_data.npy"
+    label_path = "./dataset/train_label.pkl"
+    valid_frame_path = "./dataset/train_num_frame.npy"
+    dataset = Feeder(data_path, label_path, valid_frame_path, normalization = False)
+    # print(np.bincount(dataset.label))
+    test(data_path, label_path, valid_frame_path, vid='a01_s01_e00_v2_skeleton', local=True)

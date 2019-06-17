@@ -34,6 +34,17 @@ def visualize(data, show = True, save = None):
     if save is not None:
         plt.savefig(save)
 
+def draw_acc(train_acc, test_acc, save=None):
+    epochs = range(1, train_acc.shape[0] + 1)
+    plt.figure(0)
+    plt.plot(epochs, train_acc, 'g--')
+    plt.plot(epochs, test_acc, 'r-')
+    plt.legend(['training', 'test'])
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.savefig(save)
+    plt.close(0)
+
 if __name__=='__main__':
     src_pth = '/Users/wuxiao/Downloads/Northwestern-UCLA_skeleton/a08_s03_e03_v2_skeleton.mat'
     data = np.asarray(scio.loadmat(src_pth)['skeleton'])

@@ -1,15 +1,13 @@
 import argparse
 parser = argparse.ArgumentParser(description='PyTorch Reimplementation of Pose\
 Encoding for Robust Skeleton-Based Action Recognition')
+
 # ========================= Data Preprocess  ==========================
-parser.add_argument('--normalization', dest='normalization', 
- action='store_true')
-parser.add_argument('--no-normalization', dest='normalization', 
- action='store_false')
-parser.set_defaults(normalization=True)
+parser.add_argument('--normalization', type=str, choices=['default', 'my', 'none'])
 parser.add_argument('--ftrans', dest='ftrans', action='store_true')
-parser.add_argument('--strans', dest='strans', action='store_false')
+parser.add_argument('--strans', dest='ftrans', action='store_false')
 parser.set_defaults(ftrans=True)
+
 # ========================= Learning Configs ==========================
 parser.add_argument('--lr', type=float, default=0.001,
                     help='initial learning rate')
@@ -44,6 +42,7 @@ parser.add_argument('--dataset_dir', default='./dataset/',
     help="root directory for all the datasets")
 parser.add_argument('--dataset_name', default='NW_UCLA', help="dataset name")
 parser.add_argument('--checkpoint_folder', type=str, default='./checkpoints/')
+parser.add_argument('--figure_folder',type=str, default='./figures/')
 parser.add_argument('--resume', action='store_true',
                     help='test model of version')
 parser.add_argument('--version', type=str, default='')
