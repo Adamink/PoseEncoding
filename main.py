@@ -108,11 +108,11 @@ def train(model, train_loader, criterion, optimizer, epoch):
             data.float().cuda(), target.long().cuda(), frame_num.long().cuda()
         output = model(data, target, frame_num)
         loss = criterion(output, target)
-        total_train_loss += loss
         pred = output.argmax(dim = 1, keepdim = True)
         correct += pred.eq(target.view_as(pred)).sum().item()
         optimizer.zero_grad()  
         loss.backward()
+        total_train_loss += loss.item()
         optimizer.step() 
 
     train_loss = total_train_loss / len(train_loader.dataset)
@@ -214,8 +214,6 @@ if __name__ == '__main__':
     model_path = os.path.join(args.checkpoint_folder, model_name)
     log_name = 'log_' + args.version + '.txt'
     log_path = os.path.join(args.checkpoint_folder, log_name)
-    with open(log_path, "w+") as f:
-        pass # clear log
 
     # set seed
     torch.manual_seed(args.seed)
@@ -243,6 +241,8 @@ if __name__ == '__main__':
         model, optimizer = load_model()
         test(model, test_loader, criterion, 0, True)
     else:
+        with open(log_path, "w+") as f:
+            pass # clear log
         model, optimizer = create_model()
         train_and_evaluate(model, train_loader, test_loader, optimizer, criterion, 1)
 

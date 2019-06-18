@@ -1,5 +1,4 @@
 from feeder import Feeder
-from main import save_model, log
 
 import os
 import time
@@ -94,7 +93,7 @@ def create_model():
     return (model, optimizer)
 
 def load_model():
-    print("==> loading existing lstm model")
+    # print("==> loading existing autoencoder model")
     model_info = torch.load(model_path)
     model = Autoencoder(
         input_size = input_size,
@@ -106,6 +105,9 @@ def load_model():
     optimizer = torch.optim.Adam(model.parameters(),lr = args.lr)
     optimizer.load_state_dict(model_info['optimizer'])
     return (model, optimizer)
+
+def save_model(state):
+    torch.save(state,model_path)
 
 def save_loss(loss_list):
     loss_file_name = 'loss_' + args.version + '.npy'
@@ -123,6 +125,10 @@ def draw_loss_fig():
     from visualizer import draw_loss
     draw_loss(loss, save=fig_path)
 
+def log(message):
+    with open(log_path, 'a+') as logfile:
+        print(message, file = logfile)
+
 def train(model, train_loader, criterion, optimizer, epoch):
     model.train()
     total_train_loss = 0.
@@ -130,10 +136,10 @@ def train(model, train_loader, criterion, optimizer, epoch):
         data, target, frame_num = \
             data.float().cuda(), target.long().cuda(), frame_num.long().cuda()
         output = model(data)
-        loss = criterion(output, target)
-        total_train_loss += loss
+        loss = criterion(output, data)
         optimizer.zero_grad()  
         loss.backward()
+        total_train_loss += loss.item()
         optimizer.step() 
 
     train_loss = total_train_loss / len(train_loader.dataset)
@@ -155,7 +161,6 @@ def train_model(model, train_loader, optimizer, criterion):
         for i in range(args.epochs):
             start = time.time()
             train_loss = train(model, train_loader, criterion, optimizer, epoch)
-
             elapsed_time = time.time() - start
             s = time.strftime("%M:%S", time.gmtime(elapsed_time))
             print("Time    :    {}".format(s)) 
@@ -187,21 +192,22 @@ def use_model(model, feeders):
         recovered_data = np.empty((total_frame, input_size))
         hidden_path = os.path.join(args.dataset_dir, part + '_data_hidden.npy')
         recovered_path = os.path.join(args.dataset_dir, part + '_data_recovered.npy')
-
+        print("==> using autoencoder for {} part".format(part))
         for i in tqdm(range(total_frame)):
-            input_data = torch.from_numpy(feeder[i][0])
-            hidden = model.get_hidden(input_data).numpy()
-            recovered= model(input_data).numpy()
+            input_data = feeder.data[i]
+            input_data = torch.from_numpy(input_data.reshape((1,) + input_data.shape)).float()
+            hidden = model.get_hidden(input_data).detach().numpy().reshape((-1,))
+            recovered= model(input_data).detach().numpy().reshape((-1,))
             hidden_data[i] = hidden
             recovered_data[i] = recovered
 
         feeder.reset_data(hidden_data)
         feeder.separate_time_axis()
-        np.save(hidden_path, hidden_data)
+        np.save(hidden_path, feeder.data)
 
         feeder.reset_data(recovered_data)
         feeder.separate_time_axis()
-        np.save(recovered_path, recovered_data)
+        np.save(recovered_path, feeder.data)
             
 if __name__=='__main__':
     # parse args
@@ -213,8 +219,6 @@ if __name__=='__main__':
     model_path = os.path.join(args.checkpoint_folder, model_name)
     log_name = 'log_' + args.version + '.txt'
     log_path = os.path.join(args.checkpoint_folder, log_name)
-    with open(log_path, "w+") as f:
-        pass # clear log
 
     # set seed
     torch.manual_seed(args.seed)
@@ -235,6 +239,8 @@ if __name__=='__main__':
         model, optimizer = load_model()
         use_model(model, [train_feeder, test_feeder])
     else:
+        with open(log_path, "w+") as f:
+            pass # clear log
         # load dataset
         train_loader = load_train_data()
         input_size = train_loader.dataset.feature_dim

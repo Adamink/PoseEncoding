@@ -1,6 +1,6 @@
 # sys
 import pickle
-
+import os
 # torch
 import torch
 import numpy as np
@@ -177,7 +177,7 @@ class Feeder(torch.utils.data.Dataset):
         self.total_frame = np.sum(self.valid_frame_num)
         ret = np.empty((self.total_frame, self.feature_dim))
         index = 0
-        for i in tqdm(range(self.size)):
+        for i in range(self.size):
             frames = self.valid_frame_num[i]
             ret[index:index+frames,:] = np.reshape(
              self.data[i, :frames, :], (frames, self.feature_dim))
@@ -187,7 +187,7 @@ class Feeder(torch.utils.data.Dataset):
     def separate_time_axis(self):
         ret = np.zeros((self.size, self.max_frame, self.feature_dim))
         index = 0
-        for i in tqdm(range(self.size)):
+        for i in range(self.size):
             frames = self.valid_frame_num[i]
             ret[i, :frames, :] = self.data[index:index+frames, :]
             index = index + frames
@@ -199,8 +199,9 @@ class Feeder(torch.utils.data.Dataset):
         
 def test(data_path, label_path, valid_frame_path, vid=None, local=True):
     import matplotlib.pyplot as plt
+    norm = 'default' if args.modality=='' else 'none'
     loader = torch.utils.data.DataLoader(
-        dataset=Feeder(data_path, label_path, valid_frame_path, normalization = True),
+        dataset=Feeder(data_path, label_path, valid_frame_path, normalization = norm),
         batch_size=64,
         shuffle=False,
         num_workers=2,
@@ -212,20 +213,28 @@ def test(data_path, label_path, valid_frame_path, vid=None, local=True):
         index = sample_id.index(vid)
         data, label, frame_num = loader.dataset[index]
         data = np.transpose(np.reshape(data[0,:], (20,3)),(1,0)) # (3, 20)
-        print("norm: " + str(np.linalg.norm(data)))
         from visualizer import visualize
         if not local:
             import matplotlib.pyplot as plt
             plt.switch_backend('agg')
-            visualize(data, False, './figures/test_dataloader.png')
+            visualize(data, False, './figures/{}{}.png'.format(vid, args.modality))
         else:
             visualize(data, True)
 
 
 if __name__ == '__main__':
-    data_path = "./dataset/train_data.npy"
-    label_path = "./dataset/train_label.pkl"
-    valid_frame_path = "./dataset/train_num_frame.npy"
-    dataset = Feeder(data_path, label_path, valid_frame_path, normalization = False)
-    # print(np.bincount(dataset.label))
-    test(data_path, label_path, valid_frame_path, vid='a01_s01_e00_v2_skeleton', local=True)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--part', type=str, choices=['train','test'], default='train')
+    parser.add_argument('--modality', type=str, choices=['','_recovered','_hidden'], default='')
+    parser.add_argument('--vid', type=str, default='a01_s01_e00_v2_skeleton')
+    parser.add_argument('--dataset_dir', type=str, default='./dataset/')
+    parser.add_argument('--local', dest='local', action='store_true')
+    parser.set_defaults(local=False)
+    args = parser.parse_args()
+    data_path = os.path.join(args.dataset_dir, args.part + '_data' + args.modality + '.npy')
+    label_path = os.path.join(args.dataset_dir, args.part + '_label.pkl')
+    valid_frame_path = os.path.join(args.dataset_dir, args.part + '_num_frame.npy')
+
+    # dataset = Feeder(data_path, label_path, valid_frame_path, normalization = False)
+    test(data_path, label_path, valid_frame_path, vid=args.vid, local=False)
