@@ -55,7 +55,8 @@ class LSTM(nn.Module):
 
         idx = torch.arange(0, time_step, 1).cuda().long().expand(batch, time_step)
         frame_num_expand = frame_num.view(batch,1).repeat(1,time_step)
-        mask = (idx < frame_num_expand).float().view(batch, time_step, 1).repeat(1,1,num_classes) #(batch, time_step, num_classes)
+        #(batch, time_step, num_classes)
+        mask = (idx < frame_num_expand).float().view(batch, time_step, 1).repeat(1,1,num_classes) 
         x = x * mask
         return x
     def forward(self, x, target, frame_num):

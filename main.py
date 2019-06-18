@@ -70,7 +70,7 @@ def load_model():
     optimizer.load_state_dict(model_info['optimizer'])
     return (model, optimizer)
 
-def save_checkpoint(state):
+def save_model(state):
     torch.save(state,model_path)
 
 def save_acc_loss(train_loss_list, test_loss_list, train_acc_list, test_acc_list):
@@ -179,7 +179,7 @@ def train_and_evaluate(model, train_loader, test_loader, optimizer, criterion, s
             if test_acc > best_acc:
                 best_epoch = epoch
                 best_acc = test_acc
-                save_checkpoint({
+                save_model({
                 'epoch': epoch,
                 'input_size': input_size,
                 'num_classes': num_classes,
@@ -201,9 +201,7 @@ def train_and_evaluate(model, train_loader, test_loader, optimizer, criterion, s
         model_info = torch.load(model_path)
         model.load_state_dict(model_info['state_dict'])
         test_acc, test_loss = test(model, test_loader, criterion, best_epoch, True)
-        log("Best Epoch {:3d}, Test Acc {:.2%}".format(best_epoch, test_acc))
-        
-        
+        log("Best Epoch {:3d}, Test Acc {:.2%}".format(best_epoch, test_acc))          
 
 if __name__ == '__main__':
     # parse args

@@ -9,7 +9,7 @@ from numpy.lib.format import open_memmap
 if __name__=='__main__':
     src_pth = '/data2/wuxiao/Northwestern-UCLA_skeleton/'
     dst_pth = '/home2/wuxiao/pose_encoding/dataset'
-    parts = ['train', 'test']
+    parts = ['train', 'test', 'all']
     if not os.path.exists(dst_pth):
         os.mkdir(dst_pth)
 
@@ -18,10 +18,12 @@ if __name__=='__main__':
 
     train_labels = []
     test_labels = []
+    all_labels = []
     train_names = []
     test_names = []
-    labels = {'train':train_labels, 'test':test_labels}
-    names = {'train': train_names, 'test':test_names}
+    all_names = []
+    labels = {'train':train_labels, 'test':test_labels, 'all':all_labels}
+    names = {'train': train_names, 'test':test_names, 'all':all_names}
 
     for file_pth in glob(os.path.join(src_pth,'*')):
         basename = os.path.basename(file_pth)
@@ -30,6 +32,8 @@ if __name__=='__main__':
         # print(data.shape)
         if data.shape[0]!=20:
             continue
+        all_labels.append(label)
+        all_names.append(basename)
         if 'v3' in basename:
             test_labels.append(label)
             test_names.append(basename)

@@ -16,6 +16,7 @@ class Feeder(torch.utils.data.Dataset):
         random_shift: If true, randomly pad zeros at the begining or end of sequence
         normalization: If true, normalize input sequence
         ftrans: If true, apply normalization per frame; else per sequence
+        reshape: merge the time axis into batch axis
     """
 
     def __init__(self,
@@ -25,6 +26,7 @@ class Feeder(torch.utils.data.Dataset):
                  normalization='default',
                  ftrans=True,
                  label_minus_one=True,
+                 reshape=False
                  ):
         self.data_path = data_path
         self.label_path = label_path
@@ -42,6 +44,8 @@ class Feeder(torch.utils.data.Dataset):
                 self.my_rotate()
             else:
                 self.default_rotate()
+        if reshape:
+            self.merge_time_axis()
         
     def init_joint_map(self):
         self.joint_map = {'torso':1, 'left_hip': 13, 'right_hip': 17, 
@@ -169,7 +173,30 @@ class Feeder(torch.utils.data.Dataset):
         hit_top_k = [l in rank[i, -top_k:] for i, l in enumerate(self.label)]
         return sum(hit_top_k) * 1.0 / len(hit_top_k)
 
+    def merge_time_axis(self):
+        self.total_frame = np.sum(self.valid_frame_num)
+        ret = np.empty((self.total_frame, self.feature_dim))
+        index = 0
+        for i in tqdm(range(self.size)):
+            frames = self.valid_frame_num[i]
+            ret[index:index+frames,:] = np.reshape(
+             self.data[i, :frames, :], (frames, self.feature_dim))
+            index = index + frames
+        self.data = ret
 
+    def separate_time_axis(self):
+        ret = np.zeros((self.size, self.max_frame, self.feature_dim))
+        index = 0
+        for i in tqdm(range(self.size)):
+            frames = self.valid_frame_num[i]
+            ret[i, :frames, :] = self.data[index:index+frames, :]
+            index = index + frames
+        self.data = ret
+    
+    def reset_data(self, data):
+        self.data = data
+        self.feature_dim = data.shape[-1]
+        
 def test(data_path, label_path, valid_frame_path, vid=None, local=True):
     import matplotlib.pyplot as plt
     loader = torch.utils.data.DataLoader(

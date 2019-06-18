@@ -3,7 +3,8 @@ parser = argparse.ArgumentParser(description='PyTorch Reimplementation of Pose\
 Encoding for Robust Skeleton-Based Action Recognition')
 
 # ========================= Data Preprocess  ==========================
-parser.add_argument('--normalization', type=str, choices=['default', 'my', 'none'])
+parser.add_argument('--normalization', type=str, choices=['default', 'my', 'none'],
+ default='default')
 parser.add_argument('--ftrans', dest='ftrans', action='store_true')
 parser.add_argument('--strans', dest='ftrans', action='store_false')
 parser.set_defaults(ftrans=True)
@@ -40,7 +41,6 @@ parser.add_argument('--num_workers', type = int, default=4)
 parser.add_argument('--gpus', nargs='+', type=str, default=None)
 parser.add_argument('--dataset_dir', default='./dataset/', 
     help="root directory for all the datasets")
-parser.add_argument('--dataset_name', default='NW_UCLA', help="dataset name")
 parser.add_argument('--checkpoint_folder', type=str, default='./checkpoints/')
 parser.add_argument('--figure_folder',type=str, default='./figures/')
 parser.add_argument('--resume', action='store_true',

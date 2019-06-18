@@ -45,6 +45,16 @@ def draw_acc(train_acc, test_acc, save=None):
     plt.savefig(save)
     plt.close(0)
 
+def draw_loss(loss, save=None):
+    epochs = range(1, loss.shape[0] + 1)
+    plt.figure(0)
+    plt.plot(epochs, loss, 'r-')
+    plt.legend(['loss'])
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.savefig(save)
+    plt.close(0)
+
 if __name__=='__main__':
     src_pth = '/Users/wuxiao/Downloads/Northwestern-UCLA_skeleton/a08_s03_e03_v2_skeleton.mat'
     data = np.asarray(scio.loadmat(src_pth)['skeleton'])
