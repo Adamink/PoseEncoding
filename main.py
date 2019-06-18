@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 def load_data():
     print("==> loading train data")
-    data_path = os.path.join(args.dataset_dir, 'train_data.npy')
+    data_path = os.path.join(args.dataset_dir, 'train_data' + args.modality + '.npy')
     label_path = os.path.join(args.dataset_dir, 'train_label.pkl')
     valid_frame_path = os.path.join(args.dataset_dir, 'train_num_frame.npy')
     train_loader = torch.utils.data.DataLoader(
@@ -26,7 +26,7 @@ def load_data():
     )
 
     print("==> loading test data")
-    data_path = os.path.join(args.dataset_dir, 'test_data.npy')
+    data_path = os.path.join(args.dataset_dir, 'test_data' + args.modality + '.npy')
     label_path = os.path.join(args.dataset_dir, 'test_label.pkl')
     valid_frame_path = os.path.join(args.dataset_dir, 'test_num_frame.npy')
     test_loader = torch.utils.data.DataLoader(
@@ -130,9 +130,10 @@ def test(model, test_loader, criterion, epoch, best = False):
             data, target, frame_num = \
                 data.float().cuda(), target.long().cuda(), frame_num.long().cuda()
             output = model(data, target, frame_num)
-            test_loss += criterion(output, target)
+            loss = criterion(output, target)
             pred = output.argmax(dim = 1, keepdim = True)
             correct += pred.eq(target.view_as(pred)).sum().item()
+            test_loss += loss.item()
 
     test_acc = correct / len(test_loader.dataset)
     if not best:   

@@ -8,6 +8,8 @@ parser.add_argument('--normalization', type=str, choices=['default', 'my', 'none
 parser.add_argument('--ftrans', dest='ftrans', action='store_true')
 parser.add_argument('--strans', dest='ftrans', action='store_false')
 parser.set_defaults(ftrans=True)
+parser.add_argument('--modality',type=str, choices=['', '_hidden', '_recovered'])
+parser.set_defaults(modality='_recovered')
 
 # ========================= Learning Configs ==========================
 parser.add_argument('--lr', type=float, default=0.001,
