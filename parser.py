@@ -9,12 +9,12 @@ parser.add_argument('--ftrans', dest='ftrans', action='store_true')
 parser.add_argument('--strans', dest='ftrans', action='store_false')
 parser.set_defaults(ftrans=True)
 parser.add_argument('--modality',type=str, choices=['', '_hidden', '_recovered'])
-parser.set_defaults(modality='_recovered')
+parser.set_defaults(modality='')
 
 # ========================= Learning Configs ==========================
 parser.add_argument('--lr', type=float, default=0.001,
                     help='initial learning rate')
-parser.add_argument('--epochs', type=int, default=140,
+parser.add_argument('--epochs', type=int, default=250,
                     help='upper epoch limit')     
 parser.add_argument('--batch_size', type=int, default=20,
                     help='batch size')  

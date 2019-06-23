@@ -199,7 +199,7 @@ class Feeder(torch.utils.data.Dataset):
         
 def test(data_path, label_path, valid_frame_path, vid=None, local=True):
     import matplotlib.pyplot as plt
-    norm = 'default' if args.modality=='' else 'none'
+    norm = 'default' if args.norm else 'none'
     loader = torch.utils.data.DataLoader(
         dataset=Feeder(data_path, label_path, valid_frame_path, normalization = norm),
         batch_size=64,
@@ -231,10 +231,13 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_dir', type=str, default='./dataset/')
     parser.add_argument('--local', dest='local', action='store_true')
     parser.set_defaults(local=False)
+    parser.add_argument('--norm', dest='norm', action='store_true')
+    parser.add_argument('--no-norm', dest='norm', action='store_false')
+    parser.set_defaults(norm=True)
     args = parser.parse_args()
     data_path = os.path.join(args.dataset_dir, args.part + '_data' + args.modality + '.npy')
     label_path = os.path.join(args.dataset_dir, args.part + '_label.pkl')
     valid_frame_path = os.path.join(args.dataset_dir, args.part + '_num_frame.npy')
 
     # dataset = Feeder(data_path, label_path, valid_frame_path, normalization = False)
-    test(data_path, label_path, valid_frame_path, vid=args.vid, local=False)
+    test(data_path, label_path, valid_frame_path, vid=args.vid, local=args.local)
